@@ -19,6 +19,12 @@ from analyzer.compare import compare_canonical
 from analyzer.normalize import canonicalize
 from core.capabilities import capabilities_from_config
 from core.constants import Classification, ExecutionStatus
+
+_current_manifest: dict | None = None
+
+
+def current_manifest() -> dict | None:
+    return _current_manifest
 from core.workflow_contract import WorkflowContractError
 from orchestrator.common import clean_dir, config, configure_runtime, dump_json, dump_jsonl, ensure_dir, load_json, load_jsonl, report_path, reports_dir, runner_profiles, set_vm_concurrency_limit
 from orchestrator.stability import all_equal, canonical_trace_hash, build_status_ok
@@ -323,6 +329,7 @@ def finalize_prepared_case(
         reference_status=reference_status,
         candidate_status=candidate_status,
         comparison=comparison,
+        manifest=current_manifest(),
     )
     result: dict[str, object] = {
         "program_id": program_id,
@@ -985,7 +992,19 @@ def _run_healthchecks(cfg: dict[str, Any]) -> None:
         adapter.healthcheck(SimpleNamespace(healthcheck=True))
 
 
+def _load_manifest(cfg: dict) -> dict | None:
+    manifest_path = cfg.get("manifest_path")
+    if not manifest_path:
+        return None
+    try:
+        import json as _json
+        return _json.loads(Path(manifest_path).read_text())
+    except Exception:
+        return None
+
+
 def main() -> None:
+    global _current_manifest
     args = parse_args()
     configure_runtime(workflow=args.workflow)
     cfg = config()
@@ -993,6 +1012,7 @@ def main() -> None:
     set_vm_concurrency_limit(_max_concurrent_vms())
     if not args.eligible_file:
         args.eligible_file = cfg["paths"]["eligible_file"]
+    _current_manifest = _load_manifest(cfg)
     entries = selected_entries(args)
     ensure_entries_built(entries)
     jobs = effective_jobs(args, cfg)

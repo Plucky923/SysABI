@@ -1,0 +1,9 @@
+{
+  "name": "strict-supported",
+  "replay": {
+    "supported": true,
+    "partial": false,
+    "unknown": false,
+    "unsupported": false
+  }
+}

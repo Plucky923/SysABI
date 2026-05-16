@@ -1,0 +1,31 @@
+{
+  "target": "tgoskits_arceos_smoke",
+  "source_roots": [
+    "os/arceos/modules/**/*.rs",
+    "os/arceos/api/**/*.rs",
+    "os/arceos/kernel/**/*.rs"
+  ],
+  "number_patterns": [
+    "SYS_([A-Z0-9_]+)\\s*=\\s*([0-9]+)",
+    "([A-Z0-9_]+)\\s*=\\s*([0-9]+)"
+  ],
+  "dispatch_patterns": [
+    "SYS_([A-Z0-9_]+)\\s*=>\\s*([a-zA-Z0-9_:]+)",
+    "([0-9]+)\\s*=>\\s*([a-zA-Z0-9_:]+)"
+  ],
+  "handler_patterns": [
+    "pub\\s+fn\\s+(sys_[a-zA-Z0-9_]+)",
+    "pub\\s+async\\s+fn\\s+(sys_[a-zA-Z0-9_]+)",
+    "fn\\s+(sys_[a-zA-Z0-9_]+)"
+  ],
+  "stub_patterns": [
+    "ENOSYS",
+    "ErrorNo::ENOSYS",
+    "SysError::ENOSYS",
+    "unimplemented!",
+    "todo!",
+    "Unsupported",
+    "not supported"
+  ],
+  "manual_overrides": {}
+}

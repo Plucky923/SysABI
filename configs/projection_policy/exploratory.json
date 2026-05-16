@@ -1,0 +1,9 @@
+{
+  "name": "exploratory",
+  "replay": {
+    "supported": true,
+    "partial": true,
+    "unknown": true,
+    "unsupported": false
+  }
+}

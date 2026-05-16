@@ -1,0 +1,45 @@
+{
+  "target": "tgoskits_starryos",
+  "source_roots": [
+    "os/StarryOS/kernel/**/*.rs",
+    "components/starry-*/**/*.rs",
+    "os/arceos/modules/**/*.rs",
+    "os/arceos/api/**/*.rs"
+  ],
+  "number_patterns": [
+    "SYS_([A-Z0-9_]+)\\s*=\\s*([0-9]+)",
+    "([A-Z0-9_]+)\\s*=\\s*([0-9]+)"
+  ],
+  "dispatch_patterns": [
+    "SYS_([A-Z0-9_]+)\\s*=>\\s*([a-zA-Z0-9_:]+)",
+    "([0-9]+)\\s*=>\\s*([a-zA-Z0-9_:]+)"
+  ],
+  "handler_patterns": [
+    "pub\\s+fn\\s+(sys_[a-zA-Z0-9_]+)",
+    "pub\\s+async\\s+fn\\s+(sys_[a-zA-Z0-9_]+)",
+    "fn\\s+(sys_[a-zA-Z0-9_]+)"
+  ],
+  "stub_patterns": [
+    "ENOSYS",
+    "ErrorNo::ENOSYS",
+    "SysError::ENOSYS",
+    "unimplemented!",
+    "todo!",
+    "Unsupported",
+    "not supported"
+  ],
+  "manual_overrides": {
+    "clone": {
+      "status": "partial",
+      "notes": ["clone supports only a subset of Linux clone flags"]
+    },
+    "ioctl": {
+      "status": "partial",
+      "notes": ["ioctl support is command-specific"]
+    },
+    "fcntl": {
+      "status": "partial",
+      "notes": ["fcntl command support is partial"]
+    }
+  }
+}

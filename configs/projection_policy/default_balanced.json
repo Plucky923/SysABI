@@ -1,0 +1,12 @@
+{
+  "name": "default-balanced",
+  "replay": {
+    "supported": true,
+    "partial": true,
+    "unknown": false,
+    "unsupported": false
+  },
+  "notes": [
+    "partial programs are replayed but classifier may output PARTIAL_SEMANTIC_GAP"
+  ]
+}

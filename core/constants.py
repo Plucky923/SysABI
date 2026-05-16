@@ -22,6 +22,8 @@ class Classification(StrEnum):
     BUG_LIKELY = "bug_likely"
     WEAK_SPEC_OR_ENV_NOISE = "weak_spec_or_env_noise"
     UNSUPPORTED_FEATURE = "unsupported_feature"
+    PARTIAL_SEMANTIC_GAP = "partial_semantic_gap"
+    UNKNOWN_CAPABILITY_GAP = "unknown_capability_gap"
     BUILD_FAILURE = "build_failure"
     INFRA_ERROR = "infra_error"
 
