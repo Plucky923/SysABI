@@ -1,8 +1,7 @@
 {
   "build_info_path": "artifacts/targets/tgoskits_arceos/build-info.json",
   "default_mode": "smoke-qemu",
-  "revision": "eab9e0a80ffc2ff7e3b5e3207a8659965a27c36a",
-  "repo_dir": "",
+  "revision": "8443606b5c93847e315b4e92ba17785a75980e95",
   "repo_dir_env": "SYZABI_TGOSKITS_DIR",
   "workspace_subdir": "os/arceos",
   "feature_flag_env": "SYZABI_ENABLE_TGOSKITS",
@@ -14,12 +13,9 @@
   ],
   "toolchain_probes": [
     "cargo",
-    "qemu-system-riscv64"
-  ],
-  "replay_toolchain_probes": [
-    "gcc",
     "make",
     "mkfs.fat",
+    "qemu-system-riscv64",
     "riscv64-linux-musl-gcc",
     "riscv64-linux-musl-ar",
     "riscv64-linux-musl-ranlib"
@@ -39,5 +35,6 @@
     "ax-helloworld",
     "--target",
     "riscv64gc-unknown-none-elf"
-  ]
+  ],
+  "command_timeout_sec": 10
 }

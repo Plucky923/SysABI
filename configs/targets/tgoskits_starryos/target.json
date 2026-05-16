@@ -1,7 +1,7 @@
 {
   "build_info_path": "artifacts/targets/tgoskits_starryos/build-info.json",
   "default_mode": "shell-qemu",
-  "revision": "eab9e0a80ffc2ff7e3b5e3207a8659965a27c36a",
+  "revision": "8443606b5c93847e315b4e92ba17785a75980e95",
   "repo_dir": "",
   "repo_dir_env": "SYZABI_TGOSKITS_DIR",
   "feature_flag_env": "SYZABI_ENABLE_TGOSKITS",
@@ -15,9 +15,9 @@
     "riscv64-linux-musl-gcc"
   ],
   "workspace_subdir": ".",
-  "disk_image_path": "target/riscv64gc-unknown-none-elf/rootfs-riscv64.img",
+  "disk_image_path": "target/rootfs/rootfs-riscv64-alpine.img",
   "guest_binary_path": "/bin/testcase.candidate.bin",
-  "shell_prompt": "starry:~#",
+  "shell_prompt": "root@starry:/root # ",
   "serial_transport": "stdio",
   "trace_marker_prefix": "__SYZABI_TRACE_EVENT__ ",
   "prepare_timeout_sec": 1800,

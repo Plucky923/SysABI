@@ -2,18 +2,51 @@
   "allowlist": {
     "syscalls": [
       "open",
+      "openat",
       "read",
       "write",
       "close",
       "exit",
-      "exit_group"
+      "exit_group",
+      "mmap",
+      "munmap",
+      "brk",
+      "pipe2",
+      "dup",
+      "dup2",
+      "dup3",
+      "fcntl",
+      "lseek",
+      "getpid",
+      "sched_yield",
+      "getcwd",
+      "clock_gettime",
+      "nanosleep",
+      "fstat",
+      "newfstatat",
+      "stat",
+      "lstat"
     ]
   },
   "arch": "riscv64",
   "build": {
     "cflags": [
       "-static"
-    ]
+    ],
+    "reference": {
+      "compiler_by_arch": {
+        "riscv64": "riscv64-linux-musl-gcc"
+      }
+    },
+    "candidate": {
+      "compiler_by_arch": {
+        "riscv64": "riscv64-linux-musl-gcc"
+      },
+      "runner_source": "agent/linux/runner.c",
+      "supported_arches": [
+        "riscv64"
+      ]
+    }
   },
   "capabilities": {
     "supports_batch_execution": false,

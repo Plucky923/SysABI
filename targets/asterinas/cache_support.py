@@ -471,9 +471,10 @@ def docker_run_command(
 
 def docker_make_kernel_command(cfg: dict[str, object], *, hooks) -> list[str]:
     shared_cargo_home = hooks.container_cargo_home(cfg)
+    cargo_osdk_path = str(shared_cargo_home / 'bin' / 'cargo-osdk')
     return hooks.docker_run_command(
         cfg,
-        f"set -euo pipefail; make CARGO_OSDK={shlex.quote(str(shared_cargo_home / 'bin' / 'cargo-osdk'))} kernel",
+        f"set -euo pipefail; touch {shlex.quote(cargo_osdk_path)}; make CARGO_OSDK={shlex.quote(cargo_osdk_path)} kernel",
         workdir=hooks.docker_repo_dir(cfg),
     )
 

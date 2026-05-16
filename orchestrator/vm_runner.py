@@ -543,110 +543,113 @@ def execute_prepared_candidate_case(
     binary_path = Path(str(case["binary_path"]))
     effective_timeout_sec = int(case["effective_timeout_sec"])
 
-    env = env_with_temp(cfg=cfg)
-    env["SYZABI_SIDE"] = Side.CANDIDATE
-    env["SYZABI_PROGRAM_ID"] = str(case["program_id"])
-    env["SYZABI_RUN_ID"] = str(case["run_id"])
-    env["SYZABI_TRACE_EVENTS_PATH"] = trace_events_destination(cfg=cfg, events_path=events_path)
-    env["SYZABI_TRACE_PREVIEW_BYTES"] = str(cfg["normalization"]["preview_bytes"])
-    env["SYZABI_RUNNER_RESULT_PATH"] = str(runner_result_path)
-    env["SYZABI_WORK_DIR"] = str(sandbox_root)
-    env["SYZABI_BINARY_PATH"] = str(binary_path)
-    env["SYZABI_STDOUT_PATH"] = str(stdout_path)
-    env["SYZABI_STDERR_PATH"] = str(stderr_path)
-    env["SYZABI_CONSOLE_LOG_PATH"] = str(console_path)
-    env["SYZABI_RAW_TRACE_PATH"] = str(raw_trace_path)
-    env["SYZABI_EXTERNAL_STATE_PATH"] = str(external_state_path)
-    env.update(get_target_adapter(cfg).packaged_candidate_env(package_dir, slot))
-    inject_trace = case.get("inject_trace")
-    if inject_trace:
-        env["SYZABI_INJECT_TRACE_ENABLED"] = "1"
-        env["SYZABI_INJECT_TRACE_CALL_INDEX"] = str(inject_trace.get("call_index", -1))
-        env["SYZABI_INJECT_TRACE_SYSCALL"] = str(inject_trace.get("syscall_name", ""))
-        env["SYZABI_INJECT_TRACE_FIELD"] = str(inject_trace.get("field", "return"))
-        env["SYZABI_INJECT_TRACE_VALUE"] = str(inject_trace.get("value", 0))
+    try:
+        env = env_with_temp(cfg=cfg)
+        env["SYZABI_SIDE"] = Side.CANDIDATE
+        env["SYZABI_PROGRAM_ID"] = str(case["program_id"])
+        env["SYZABI_RUN_ID"] = str(case["run_id"])
+        env["SYZABI_TRACE_EVENTS_PATH"] = trace_events_destination(cfg=cfg, events_path=events_path)
+        env["SYZABI_TRACE_PREVIEW_BYTES"] = str(cfg["normalization"]["preview_bytes"])
+        env["SYZABI_RUNNER_RESULT_PATH"] = str(runner_result_path)
+        env["SYZABI_WORK_DIR"] = str(sandbox_root)
+        env["SYZABI_BINARY_PATH"] = str(binary_path)
+        env["SYZABI_STDOUT_PATH"] = str(stdout_path)
+        env["SYZABI_STDERR_PATH"] = str(stderr_path)
+        env["SYZABI_CONSOLE_LOG_PATH"] = str(console_path)
+        env["SYZABI_RAW_TRACE_PATH"] = str(raw_trace_path)
+        env["SYZABI_EXTERNAL_STATE_PATH"] = str(external_state_path)
+        env.update(get_target_adapter(cfg).packaged_candidate_env(package_dir, slot))
+        inject_trace = case.get("inject_trace")
+        if inject_trace:
+            env["SYZABI_INJECT_TRACE_ENABLED"] = "1"
+            env["SYZABI_INJECT_TRACE_CALL_INDEX"] = str(inject_trace.get("call_index", -1))
+            env["SYZABI_INJECT_TRACE_SYSCALL"] = str(inject_trace.get("syscall_name", ""))
+            env["SYZABI_INJECT_TRACE_FIELD"] = str(inject_trace.get("field", "return"))
+            env["SYZABI_INJECT_TRACE_VALUE"] = str(inject_trace.get("value", 0))
 
-    command_context = make_execution_context(
-        program_id=str(case["program_id"]),
-        side=Side.CANDIDATE,
-        run_id=str(case["run_id"]),
-        timeout_sec=effective_timeout_sec,
-        sandbox_root=sandbox_root,
-        artifact_root=artifact_root,
-        binary_path=binary_path,
-        stdout_path=stdout_path,
-        stderr_path=stderr_path,
-        console_path=console_path,
-        events_path=events_path,
-        raw_trace_path=raw_trace_path,
-        external_state_path=external_state_path,
-        runner_result_path=runner_result_path,
-    )
-    command = resolve_command(profile, command_context)
+        command_context = make_execution_context(
+            program_id=str(case["program_id"]),
+            side=Side.CANDIDATE,
+            run_id=str(case["run_id"]),
+            timeout_sec=effective_timeout_sec,
+            sandbox_root=sandbox_root,
+            artifact_root=artifact_root,
+            binary_path=binary_path,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            console_path=console_path,
+            events_path=events_path,
+            raw_trace_path=raw_trace_path,
+            external_state_path=external_state_path,
+            runner_result_path=runner_result_path,
+        )
+        command = resolve_command(profile, command_context)
 
-    status, exit_code, stdout, stderr, status_detail, kernel_build_value, elapsed_ms = _run_case_core(
-        runner=build_runner(profile),
-        command=command,
-        cwd=str(sandbox_root),
-        env=env,
-        timeout_sec=effective_timeout_sec,
-        kernel_build_command=profile["kernel_build_command"],
-        profile_kind=str(case["runner_kind"]),
-        runner_result_path=runner_result_path,
-    )
+        status, exit_code, stdout, stderr, status_detail, kernel_build_value, elapsed_ms = _run_case_core(
+            runner=build_runner(profile),
+            command=command,
+            cwd=str(sandbox_root),
+            env=env,
+            timeout_sec=effective_timeout_sec,
+            kernel_build_command=profile["kernel_build_command"],
+            profile_kind=str(case["runner_kind"]),
+            runner_result_path=runner_result_path,
+        )
 
-    _persist_case_outputs(
-        stdout=stdout,
-        stderr=stderr,
-        stdout_path=stdout_path,
-        stderr_path=stderr_path,
-        console_path=console_path,
-        console_meta={
-            "command": command,
-            "cwd": str(sandbox_root),
-            "runner_kind": str(case["runner_kind"]),
-            "status": status,
-            "elapsed_ms": elapsed_ms,
-            "initramfs_package_dir": str(package_dir),
-            "initramfs_package_slot": slot,
-        },
-    )
-    _build_and_persist_raw_trace(
-        program_id=str(case["program_id"]),
-        side=Side.CANDIDATE,
-        run_id=str(case["run_id"]),
-        status=status,
-        exit_code=exit_code,
-        raw_trace_path=raw_trace_path,
-        events_path=events_path,
-        stdout_text=stdout,
-        stderr_text=stderr,
-        console_path=console_path,
-        cfg=cfg,
-    )
-    if not external_state_path.exists():
-        dump_json(external_state_path, {"files": []})
+        _persist_case_outputs(
+            stdout=stdout,
+            stderr=stderr,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            console_path=console_path,
+            console_meta={
+                "command": command,
+                "cwd": str(sandbox_root),
+                "runner_kind": str(case["runner_kind"]),
+                "status": status,
+                "elapsed_ms": elapsed_ms,
+                "initramfs_package_dir": str(package_dir),
+                "initramfs_package_slot": slot,
+            },
+        )
+        _build_and_persist_raw_trace(
+            program_id=str(case["program_id"]),
+            side=Side.CANDIDATE,
+            run_id=str(case["run_id"]),
+            status=status,
+            exit_code=exit_code,
+            raw_trace_path=raw_trace_path,
+            events_path=events_path,
+            stdout_text=stdout,
+            stderr_text=stderr,
+            console_path=console_path,
+            cfg=cfg,
+        )
+        if not external_state_path.exists():
+            dump_json(external_state_path, {"files": []})
 
-    result = RunResult(
-        program_id=str(case["program_id"]),
-        side=Side.CANDIDATE,
-        status=status,
-        exit_code=exit_code,
-        stdout_path=str(stdout_path),
-        stderr_path=str(stderr_path),
-        console_log_path=str(console_path),
-        trace_json_path=str(raw_trace_path),
-        external_state_path=str(external_state_path),
-        elapsed_ms=elapsed_ms,
-        role=str(case["role"]),
-        snapshot_id=str(case["snapshot_id"]),
-        kernel_build=kernel_build_value,
-        run_id=str(case["run_id"]),
-        status_detail=status_detail,
-        runner_kind=str(case["runner_kind"]),
-    )
-    dump_json(Path(str(case["artifact_root"])) / "run-result.json", result.to_dict())
-    return result
+        result = RunResult(
+            program_id=str(case["program_id"]),
+            side=Side.CANDIDATE,
+            status=status,
+            exit_code=exit_code,
+            stdout_path=str(stdout_path),
+            stderr_path=str(stderr_path),
+            console_log_path=str(console_path),
+            trace_json_path=str(raw_trace_path),
+            external_state_path=str(external_state_path),
+            elapsed_ms=elapsed_ms,
+            role=str(case["role"]),
+            snapshot_id=str(case["snapshot_id"]),
+            kernel_build=kernel_build_value,
+            run_id=str(case["run_id"]),
+            status_detail=status_detail,
+            runner_kind=str(case["runner_kind"]),
+        )
+        dump_json(Path(str(case["artifact_root"])) / "run-result.json", result.to_dict())
+        return result
+    finally:
+        _cleanup_sandbox(sandbox_root)
 
 
 def execute_candidate_case_in_package(
@@ -859,6 +862,9 @@ def execute_candidate_batch_with_context(
             str(case["program_id"]): finalize_batch_case_result(case=case, elapsed_ms=elapsed_ms)
             for case in prepared_cases
         }
+        for case in prepared_cases:
+            _cleanup_sandbox(Path(str(case["sandbox_root"])))
+        _cleanup_sandbox(manifest_dir)
         return results, None, {str(case["program_id"]): None for case in prepared_cases}
 
     package_dir, slot_by_program = prepare_candidate_initramfs_package(prepared_cases, cfg, batch_metadata=batch_metadata)
@@ -903,6 +909,16 @@ def execute_candidate_batch_with_context(
     return results, package_dir, slot_by_program
 
 
+def _cleanup_sandbox(sandbox_root: Path) -> None:
+    try:
+        if sandbox_root.is_dir():
+            shutil.rmtree(sandbox_root)
+        elif sandbox_root.is_file() or sandbox_root.is_symlink():
+            sandbox_root.unlink()
+    except OSError:
+        pass
+
+
 def execute_side(
     *,
     program_id: str,
@@ -919,123 +935,126 @@ def execute_side(
     build_artifacts = build_root(program_id)
     sandbox_root = clean_dir(Path(profile["work_root"]) / program_id / run_id)
 
-    for name in ("testcase.c", "testcase.instrumented.c", "testcase.bin", "testcase.candidate.bin", "build-result.json"):
-        source = build_artifacts / name
-        if source.exists():
-            shutil.copy2(source, artifact_root / name)
+    try:
+        for name in ("testcase.c", "testcase.instrumented.c", "testcase.bin", "testcase.candidate.bin", "build-result.json"):
+            source = build_artifacts / name
+            if source.exists():
+                shutil.copy2(source, artifact_root / name)
 
-    stdout_path = artifact_root / "stdout.txt"
-    stderr_path = artifact_root / "stderr.txt"
-    console_path = artifact_root / "console.log"
-    events_path = artifact_root / "raw-trace.events.jsonl"
-    raw_trace_path = artifact_root / "raw-trace.json"
-    external_state_path = artifact_root / "external-state.json"
-    runner_result_path = artifact_root / "runner-result.json"
-    binary_path = artifact_root / binary_name
-    for stale_path in (events_path, raw_trace_path, external_state_path, stdout_path, stderr_path, console_path, runner_result_path):
-        stale_path.unlink(missing_ok=True)
+        stdout_path = artifact_root / "stdout.txt"
+        stderr_path = artifact_root / "stderr.txt"
+        console_path = artifact_root / "console.log"
+        events_path = artifact_root / "raw-trace.events.jsonl"
+        raw_trace_path = artifact_root / "raw-trace.json"
+        external_state_path = artifact_root / "external-state.json"
+        runner_result_path = artifact_root / "runner-result.json"
+        binary_path = artifact_root / binary_name
+        for stale_path in (events_path, raw_trace_path, external_state_path, stdout_path, stderr_path, console_path, runner_result_path):
+            stale_path.unlink(missing_ok=True)
 
-    env = env_with_temp()
-    env["SYZABI_SIDE"] = side
-    env["SYZABI_PROGRAM_ID"] = program_id
-    env["SYZABI_RUN_ID"] = run_id
-    env["SYZABI_TRACE_EVENTS_PATH"] = trace_events_destination(cfg=cfg, events_path=events_path)
-    env["SYZABI_TRACE_PREVIEW_BYTES"] = str(cfg["normalization"]["preview_bytes"])
-    env["SYZABI_RUNNER_RESULT_PATH"] = str(runner_result_path)
-    env["SYZABI_WORK_DIR"] = str(sandbox_root)
-    env["SYZABI_BINARY_PATH"] = str(binary_path)
-    env["SYZABI_STDOUT_PATH"] = str(stdout_path)
-    env["SYZABI_STDERR_PATH"] = str(stderr_path)
-    env["SYZABI_CONSOLE_LOG_PATH"] = str(console_path)
-    env["SYZABI_RAW_TRACE_PATH"] = str(raw_trace_path)
-    env["SYZABI_EXTERNAL_STATE_PATH"] = str(external_state_path)
-    if inject_trace:
-        env["SYZABI_INJECT_TRACE_ENABLED"] = "1"
-        env["SYZABI_INJECT_TRACE_CALL_INDEX"] = str(inject_trace.get("call_index", -1))
-        env["SYZABI_INJECT_TRACE_SYSCALL"] = str(inject_trace.get("syscall_name", ""))
-        env["SYZABI_INJECT_TRACE_FIELD"] = str(inject_trace.get("field", "return"))
-        env["SYZABI_INJECT_TRACE_VALUE"] = str(inject_trace.get("value", 0))
+        env = env_with_temp()
+        env["SYZABI_SIDE"] = side
+        env["SYZABI_PROGRAM_ID"] = program_id
+        env["SYZABI_RUN_ID"] = run_id
+        env["SYZABI_TRACE_EVENTS_PATH"] = trace_events_destination(cfg=cfg, events_path=events_path)
+        env["SYZABI_TRACE_PREVIEW_BYTES"] = str(cfg["normalization"]["preview_bytes"])
+        env["SYZABI_RUNNER_RESULT_PATH"] = str(runner_result_path)
+        env["SYZABI_WORK_DIR"] = str(sandbox_root)
+        env["SYZABI_BINARY_PATH"] = str(binary_path)
+        env["SYZABI_STDOUT_PATH"] = str(stdout_path)
+        env["SYZABI_STDERR_PATH"] = str(stderr_path)
+        env["SYZABI_CONSOLE_LOG_PATH"] = str(console_path)
+        env["SYZABI_RAW_TRACE_PATH"] = str(raw_trace_path)
+        env["SYZABI_EXTERNAL_STATE_PATH"] = str(external_state_path)
+        if inject_trace:
+            env["SYZABI_INJECT_TRACE_ENABLED"] = "1"
+            env["SYZABI_INJECT_TRACE_CALL_INDEX"] = str(inject_trace.get("call_index", -1))
+            env["SYZABI_INJECT_TRACE_SYSCALL"] = str(inject_trace.get("syscall_name", ""))
+            env["SYZABI_INJECT_TRACE_FIELD"] = str(inject_trace.get("field", "return"))
+            env["SYZABI_INJECT_TRACE_VALUE"] = str(inject_trace.get("value", 0))
 
-    runner_kind = profile.get("kind", "local")
-    command_context = make_execution_context(
-        program_id=program_id,
-        side=side,
-        run_id=run_id,
-        timeout_sec=effective_timeout_sec,
-        sandbox_root=sandbox_root,
-        artifact_root=artifact_root,
-        binary_path=binary_path,
-        stdout_path=stdout_path,
-        stderr_path=stderr_path,
-        console_path=console_path,
-        events_path=events_path,
-        raw_trace_path=raw_trace_path,
-        external_state_path=external_state_path,
-        runner_result_path=runner_result_path,
-    )
-    if runner_kind == "command":
-        command = resolve_command(profile, command_context)
-    else:
-        command = [str(binary_path)]
+        runner_kind = profile.get("kind", "local")
+        command_context = make_execution_context(
+            program_id=program_id,
+            side=side,
+            run_id=run_id,
+            timeout_sec=effective_timeout_sec,
+            sandbox_root=sandbox_root,
+            artifact_root=artifact_root,
+            binary_path=binary_path,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            console_path=console_path,
+            events_path=events_path,
+            raw_trace_path=raw_trace_path,
+            external_state_path=external_state_path,
+            runner_result_path=runner_result_path,
+        )
+        if runner_kind == "command":
+            command = resolve_command(profile, command_context)
+        else:
+            command = [str(binary_path)]
 
-    status, exit_code, stdout, stderr, status_detail, kernel_build_value, elapsed_ms = _run_case_core(
-        runner=build_runner(profile),
-        command=command,
-        cwd=str(sandbox_root),
-        env=env,
-        timeout_sec=effective_timeout_sec,
-        kernel_build_command=profile["kernel_build_command"],
-        profile_kind=runner_kind,
-        runner_result_path=runner_result_path,
-    )
+        status, exit_code, stdout, stderr, status_detail, kernel_build_value, elapsed_ms = _run_case_core(
+            runner=build_runner(profile),
+            command=command,
+            cwd=str(sandbox_root),
+            env=env,
+            timeout_sec=effective_timeout_sec,
+            kernel_build_command=profile["kernel_build_command"],
+            profile_kind=runner_kind,
+            runner_result_path=runner_result_path,
+        )
 
-    _persist_case_outputs(
-        stdout=stdout,
-        stderr=stderr,
-        stdout_path=stdout_path,
-        stderr_path=stderr_path,
-        console_path=console_path,
-        console_meta={
-            "command": command,
-            "cwd": str(sandbox_root),
-            "runner_kind": runner_kind,
-            "status": status,
-            "elapsed_ms": elapsed_ms,
-        },
-    )
-    _build_and_persist_raw_trace(
-        program_id=program_id,
-        side=side,
-        run_id=run_id,
-        status=status,
-        exit_code=exit_code,
-        raw_trace_path=raw_trace_path,
-        events_path=events_path,
-        stdout_text=stdout,
-        stderr_text=stderr,
-        console_path=console_path,
-        cfg=cfg,
-    )
-    if not external_state_path.exists():
-        dump_json(external_state_path, sample_external_state(sandbox_root))
+        _persist_case_outputs(
+            stdout=stdout,
+            stderr=stderr,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            console_path=console_path,
+            console_meta={
+                "command": command,
+                "cwd": str(sandbox_root),
+                "runner_kind": runner_kind,
+                "status": status,
+                "elapsed_ms": elapsed_ms,
+            },
+        )
+        _build_and_persist_raw_trace(
+            program_id=program_id,
+            side=side,
+            run_id=run_id,
+            status=status,
+            exit_code=exit_code,
+            raw_trace_path=raw_trace_path,
+            events_path=events_path,
+            stdout_text=stdout,
+            stderr_text=stderr,
+            console_path=console_path,
+            cfg=cfg,
+        )
+        if not external_state_path.exists():
+            dump_json(external_state_path, sample_external_state(sandbox_root))
 
-    result = RunResult(
-        program_id=program_id,
-        side=side,
-        status=status,
-        exit_code=exit_code,
-        stdout_path=str(stdout_path),
-        stderr_path=str(stderr_path),
-        console_log_path=str(console_path),
-        trace_json_path=str(raw_trace_path),
-        external_state_path=str(external_state_path),
-        elapsed_ms=elapsed_ms,
-        role=profile["role"],
-        snapshot_id=profile["snapshot_id"],
-        kernel_build=kernel_build_value,
-        run_id=run_id,
-        status_detail=status_detail,
-        runner_kind=runner_kind,
-    )
-    dump_json(artifact_root / "run-result.json", result.to_dict())
-    return result
+        result = RunResult(
+            program_id=program_id,
+            side=side,
+            status=status,
+            exit_code=exit_code,
+            stdout_path=str(stdout_path),
+            stderr_path=str(stderr_path),
+            console_log_path=str(console_path),
+            trace_json_path=str(raw_trace_path),
+            external_state_path=str(external_state_path),
+            elapsed_ms=elapsed_ms,
+            role=profile["role"],
+            snapshot_id=profile["snapshot_id"],
+            kernel_build=kernel_build_value,
+            run_id=run_id,
+            status_detail=status_detail,
+            runner_kind=runner_kind,
+        )
+        dump_json(artifact_root / "run-result.json", result.to_dict())
+        return result
+    finally:
+        _cleanup_sandbox(sandbox_root)

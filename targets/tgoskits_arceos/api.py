@@ -289,15 +289,18 @@ def managed_cargo_marker() -> str:
     return "# axbuild-managed: arceos-c-test-cargo-config"
 
 
-def render_managed_cargo_config(cfg: dict[str, Any]) -> str:
+def render_managed_cargo_config(cfg: dict[str, Any], repo_root: Path | None = None) -> str:
+    root = repo_root if repo_root is not None else repo_dir(cfg)
+    template_path = root / "scripts" / "arceos-c-test-cargo-config.template.toml"
+    manifest_path = root / "Cargo.toml"
     try:
-        template = managed_cargo_template_path(cfg).read_text(encoding="utf-8")
+        template = template_path.read_text(encoding="utf-8")
     except OSError as exc:
-        raise RunnerError(f"failed to read managed ArceOS cargo-config template: {managed_cargo_template_path(cfg)}") from exc
+        raise RunnerError(f"failed to read managed ArceOS cargo-config template: {template_path}") from exc
     try:
-        manifest = tomllib.loads(root_cargo_manifest_path(cfg).read_text(encoding="utf-8"))
+        manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as exc:
-        raise RunnerError(f"failed to read TGOSKits root Cargo.toml for managed ArceOS cargo-config generation: {root_cargo_manifest_path(cfg)}") from exc
+        raise RunnerError(f"failed to read TGOSKits root Cargo.toml for managed ArceOS cargo-config generation: {manifest_path}") from exc
     patches = manifest.get("patch", {}).get("crates-io", {})
     rendered = template if template.endswith("\n") else template + "\n"
     rendered += "[patch.crates-io]\n"
@@ -308,18 +311,18 @@ def render_managed_cargo_config(cfg: dict[str, Any]) -> str:
         relative_path = payload.get("path")
         if not isinstance(relative_path, str) or not relative_path:
             continue
-        absolute = repo_dir(cfg) / relative_path
+        absolute = root / relative_path
         rendered += f'{crate_name} = {{ path = "{absolute}" }}\n'
     return rendered
 
 
-def write_managed_cargo_config(cfg: dict[str, Any]) -> tuple[Path, str | None]:
+def write_managed_cargo_config(cfg: dict[str, Any], repo_root: Path | None = None) -> tuple[Path, str | None]:
     config_path = managed_cargo_config_path(cfg)
     previous = config_path.read_text(encoding="utf-8") if config_path.exists() else None
     if previous is not None and managed_cargo_marker() not in previous:
         raise RunnerError(f"refusing to overwrite user-managed cargo config at {config_path}")
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text(render_managed_cargo_config(cfg), encoding="utf-8")
+    config_path.write_text(render_managed_cargo_config(cfg, repo_root=repo_root), encoding="utf-8")
     return config_path, previous
 
 
@@ -739,6 +742,28 @@ def run_case(args: argparse.Namespace) -> None:
     private_workspace = repo_copy / str(target_config(cfg).get("workspace_subdir", "os/arceos"))
     os.environ["SYZABI_ARCEOS_PRIVATE_WORKSPACE"] = str(private_workspace)
 
+    # Ensure build-script-generated files exist in the new repo copy; Cargo may
+    # skip build.rs if the global target cache says it already ran.
+    ctypes_gen = private_workspace / "api" / "arceos_posix_api" / "src" / "ctypes_gen.rs"
+    if not ctypes_gen.exists():
+        # Try to inherit from the original repo (pre-generated once).
+        original_ctypes_gen = (
+            repo_dir(cfg) / "os" / "arceos" / "api" / "arceos_posix_api" / "src" / "ctypes_gen.rs"
+        )
+        if original_ctypes_gen.exists():
+            shutil.copy2(original_ctypes_gen, ctypes_gen)
+    if not ctypes_gen.exists():
+        # Force Cargo to rerun build.rs by wiping all ax-posix-api cache entries
+        # (fingerprints, build-script outputs, and compiled artifacts).
+        target_dir = Path(__file__).resolve().parents[3] / "target"
+        if target_dir.exists():
+            for pattern in ("ax-posix-api-*", "ax_posix_api-*", "libax_posix_api-*"):
+                for stale in target_dir.rglob(pattern):
+                    if stale.is_dir():
+                        shutil.rmtree(stale, ignore_errors=True)
+                    elif stale.is_file():
+                        stale.unlink(missing_ok=True)
+
     try:
         app_dir = materialize_app_tree(cfg, binary_path=binary_path, work_dir=work_dir)
         timeout_sec = int(target_config(cfg).get("command_timeout_sec", 300))
@@ -769,7 +794,7 @@ def run_case(args: argparse.Namespace) -> None:
         config_path: Path | None = None
         previous_config: str | None = None
         try:
-            config_path, previous_config = write_managed_cargo_config(cfg)
+            config_path, previous_config = write_managed_cargo_config(cfg, repo_root=repo_copy)
             make_args = run_case_make_args(cfg, app_dir=app_dir, disk_image=disk_image)
             try:
                 completed_defconfig = subprocess.run(

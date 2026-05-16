@@ -38,6 +38,9 @@ LEGACY_CLEANUP_TARGETS = (
     "eligible_programs/asterinas_scml.static.jsonl",
     "reports/asterinas",
     "reports/asterinas_scml",
+    "artifacts/sandboxes",
+    "artifacts/runs",
+    "target",
 )
 
 

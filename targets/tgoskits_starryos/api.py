@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import pty
@@ -24,6 +25,20 @@ if str(ROOT) not in sys.path:
 from core.paths import resolve_compiler_path
 from orchestrator.common import config, configure_runtime, dump_json, resolve_repo_path
 from orchestrator.vm_runner import TRACE_EVENT_STDOUT_PREFIX, extract_framed_events
+
+
+_FICLONE = 0x40049409
+
+
+def _reflink_or_copy(src: Path, dst: Path) -> None:
+    """Copy a file using FICLONE (CoW reflink) when available, falling back to full copy."""
+    if dst.exists():
+        dst.unlink()
+    try:
+        with open(src, "rb") as fsrc, open(dst, "wb") as fdst:
+            fcntl.ioctl(fdst.fileno(), _FICLONE, fsrc.fileno())
+    except OSError:
+        shutil.copy2(str(src), str(dst))
 
 
 class RunnerError(RuntimeError):
@@ -222,9 +237,8 @@ def _qemu_template_path(cfg: dict[str, Any]) -> Path:
 
 
 def _shared_rootfs_placeholder(cfg: dict[str, Any]) -> str:
-    arch = str(cfg.get("arch", "riscv64"))
-    target = f"{arch}gc-unknown-none-elf" if arch == "riscv64" else f"{arch}-unknown-none"
-    return f"${{workspace}}/target/{target}/rootfs-{arch}.img"
+    disk_path = str(target_config(cfg).get("disk_image_path", ""))
+    return f"${{workspace}}/{disk_path}"
 
 
 def prepare_isolated_qemu_config(cfg: dict[str, Any], sandbox_root: Path) -> tuple[Path, Path | None]:
@@ -239,8 +253,8 @@ def prepare_isolated_qemu_config(cfg: dict[str, Any], sandbox_root: Path) -> tup
     if not original_image.exists():
         raise RunnerError(f"StarryOS disk image is missing: {original_image}")
 
-    copied_image = sandbox_root / "rootfs-riscv64.img"
-    shutil.copy2(str(original_image), str(copied_image))
+    copied_image = sandbox_root / original_image.name
+    _reflink_or_copy(original_image, copied_image)
 
     template = _qemu_template_path(cfg)
     if not template.exists():
@@ -506,7 +520,6 @@ def prepare_target(cfg: dict[str, Any]) -> str:
     build_info_path = resolve_repo_path(target_config(cfg)["build_info_path"])
     build_info_path.parent.mkdir(parents=True, exist_ok=True)
 
-    import fcntl
     with open(build_info_path, "a+") as f:
         fcntl.flock(f, fcntl.LOCK_EX)
         try:
