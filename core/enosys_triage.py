@@ -18,10 +18,20 @@ def candidate_returns_enosys(first_divergence: dict) -> bool:
     return False
 
 
+def split_variant_name(name: str) -> tuple[str, str | None]:
+    if "$" in name:
+        base, variant = name.split("$", 1)
+        return base, variant
+    return name, None
+
+
 def lookup_syscall_capability(manifest: dict, syscall_name: str) -> Optional[dict]:
     syscalls = manifest.get("syscalls", {})
     if syscall_name in syscalls:
         return syscalls[syscall_name]
+    base_name, _ = split_variant_name(syscall_name)
+    if base_name != syscall_name and base_name in syscalls:
+        return syscalls[base_name]
     return None
 
 
