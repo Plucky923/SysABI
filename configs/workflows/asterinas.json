@@ -41,7 +41,9 @@
     "bug_likely": "BUG_LIKELY",
     "no_diff": "NO_DIFF",
     "unsupported_feature": "UNSUPPORTED_FEATURE",
-    "weak_spec_or_env_noise": "WEAK_SPEC_OR_ENV_NOISE"
+    "weak_spec_or_env_noise": "WEAK_SPEC_OR_ENV_NOISE",
+    "partial_semantic_gap": "PARTIAL_SEMANTIC_GAP",
+    "unknown_capability_gap": "UNKNOWN_CAPABILITY_GAP"
   },
   "derivation": {
     "accept_reasons": [
